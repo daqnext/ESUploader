@@ -15,6 +15,7 @@ import (
 const UPLOAD_DEFAULT_SIZE = 100
 
 type CustomLog struct {
+	App     string `json:"app"`
 	Tag     string `json:"tag"`
 	Content string `json:"content"`
 	Ip      string `json:"ip"`
@@ -60,8 +61,8 @@ type Uploader struct {
 	Ip           string
 }
 
-func (upl *Uploader) AddCustomLog(Tag string, Content string, Time int64) {
-	upl.CustomLogs = append(upl.CustomLogs, &CustomLog{Tag, Content, upl.Ip, Time})
+func (upl *Uploader) AddCustomLog(App string, Tag string, Content string, Time int64) {
+	upl.CustomLogs = append(upl.CustomLogs, &CustomLog{App, Tag, Content, upl.Ip, Time})
 }
 
 func (upl *Uploader) uploadCustomLog() {

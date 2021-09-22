@@ -1,4 +1,4 @@
-module github.com/daqnext/logservice
+module github.com/daqnext/loguploader
 
 go 1.16
 

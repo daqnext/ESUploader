@@ -3,14 +3,14 @@ package main
 import (
 	"time"
 
-	"github.com/daqnext/logservice/uploader"
+	"github.com/daqnext/loguploader/uploader"
 )
 
 func main() {
 
-	endpoint := "xxx"
-	username := "yyy"
-	password := "zzz"
+	endpoint := "xxxx"
+	username := "yyyy"
+	password := "zzzz"
 
 	logUploader, err := uploader.New(endpoint, username, password)
 	if err != nil {
@@ -47,9 +47,9 @@ func main() {
 	logUploader.AddSqldbLog("TestApp100", "sql insert xxxx 5", time.Now().Unix())
 
 	//add customlog
-	logUploader.AddCustomLog("tag1", "this is custom message 1", time.Now().Unix())
-	logUploader.AddCustomLog("tag2", "this is custom message 2", time.Now().Unix())
-	logUploader.AddCustomLog("tag1", "this is custom message 1", time.Now().Unix())
+	logUploader.AddCustomLog("App1", "tag1", "this is custom message 1", time.Now().Unix())
+	logUploader.AddCustomLog("App2", "tag2", "this is custom message 2", time.Now().Unix())
+	logUploader.AddCustomLog("App3", "tag1", "this is custom message 1", time.Now().Unix())
 
 	time.Sleep(time.Second * 600)
 
