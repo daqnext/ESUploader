@@ -14,6 +14,13 @@ import (
 //batch upload every 50
 const UPLOAD_DEFAULT_SIZE = 100
 
+type CustomLog struct {
+	Tag     string `json:"tag"`
+	Content string `json:"content"`
+	Ip      string `json:"ip"`
+	Time    int64  `json:"time"`
+}
+
 type SqldbLog struct {
 	App     string `json:"app"`
 	Content string `json:"content"`
@@ -49,7 +56,51 @@ type Uploader struct {
 	CurrentJobs  map[string]*JobCurrent
 	GolangPanics map[string]*GolangPanic
 	SqldbLog     []*SqldbLog
+	CustomLogs   []*CustomLog
 	Ip           string
+}
+
+func (upl *Uploader) AddCustomLog(Tag string, Content string, Time int64) {
+	upl.CustomLogs = append(upl.CustomLogs, &CustomLog{Tag, Content, upl.Ip, Time})
+}
+
+func (upl *Uploader) uploadCustomLog() {
+
+	bulkRequest := upl.Client.Bulk()
+
+	for {
+
+		toUploadSize := UPLOAD_DEFAULT_SIZE
+		if toUploadSize > len(upl.CustomLogs) {
+			toUploadSize = len(upl.CustomLogs)
+		}
+
+		if toUploadSize > 0 {
+			for i := 0; i < toUploadSize; i++ {
+				reqi := elastic.NewBulkIndexRequest().Index("customlog").Doc(upl.CustomLogs[i])
+				bulkRequest.Add(reqi)
+			}
+
+			_, err := bulkRequest.Do(context.Background())
+			if err != nil {
+				time.Sleep(120 * time.Second)
+			} else {
+				upl.CustomLogs = upl.CustomLogs[toUploadSize:]
+			}
+		}
+
+		//delete some record as too much records
+		if len(upl.CustomLogs) > 100000 {
+			upl.AddGolangPanic("uploader", "CustomLogs length too big > 100000", time.Now().Unix())
+			upl.CustomLogs = upl.CustomLogs[50000:]
+		}
+
+		//wait and add
+		if len(upl.CustomLogs) < 10 {
+			time.Sleep(300 * time.Second)
+		}
+	}
+
 }
 
 func (upl *Uploader) AddSqldbLog(App string, Content string, Time int64) {
@@ -188,7 +239,7 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 		return nil, err
 	}
 
-	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, GetPubIp()}
+	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, []*CustomLog{}, GetPubIp()}
 
 	//start the backgroud uploader
 	sr.New_Panic_Redo(func() {
@@ -201,6 +252,10 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 
 	sr.New_Panic_Redo(func() {
 		upl.uploadJobCurrent()
+	}).Start()
+
+	sr.New_Panic_Redo(func() {
+		upl.uploadCustomLog()
 	}).Start()
 
 	return upl, nil

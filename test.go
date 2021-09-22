@@ -8,9 +8,9 @@ import (
 
 func main() {
 
-	endpoint := "https://xxxxx"
-	username := "zzzz"
-	password := "yyy"
+	endpoint := "xxx"
+	username := "yyy"
+	password := "zzz"
 
 	logUploader, err := uploader.New(endpoint, username, password)
 	if err != nil {
@@ -45,6 +45,11 @@ func main() {
 	logUploader.AddSqldbLog("TestApp2", "sql insert xxxx 3", time.Now().Unix())
 	logUploader.AddSqldbLog("TestApp3", "sql insert xxxx 4", time.Now().Unix())
 	logUploader.AddSqldbLog("TestApp100", "sql insert xxxx 5", time.Now().Unix())
+
+	//add customlog
+	logUploader.AddCustomLog("tag1", "this is custom message 1", time.Now().Unix())
+	logUploader.AddCustomLog("tag2", "this is custom message 2", time.Now().Unix())
+	logUploader.AddCustomLog("tag1", "this is custom message 1", time.Now().Unix())
 
 	time.Sleep(time.Second * 600)
 
