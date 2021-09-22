@@ -1,6 +1,5 @@
-# logservice
-upload logs to remote elastic search server
-
+# loguploader
+server side upload logs to remote elastic search server
 
 ## install 
 ```go
