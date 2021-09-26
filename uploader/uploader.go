@@ -14,7 +14,7 @@ import (
 //batch upload every 50
 const UPLOAD_DEFAULT_SIZE = 100
 
-type CustomLog struct {
+type TagLog struct {
 	App     string `json:"app"`
 	Tag     string `json:"tag"`
 	Content string `json:"content"`
@@ -53,32 +53,35 @@ func (r *myRetrier) Retry(ctx context.Context, retry int, req *http.Request, res
 }
 
 type Uploader struct {
-	Client       *elastic.Client
-	CurrentJobs  map[string]*JobCurrent
-	GolangPanics map[string]*GolangPanic
-	SqldbLog     []*SqldbLog
-	CustomLogs   []*CustomLog
-	Ip           string
+	Client             *elastic.Client
+	CurrentJobs        map[string]*JobCurrent
+	GolangPanics       map[string]*GolangPanic
+	SqldbLogs          []*SqldbLog
+	TagLogs            []*TagLog
+	UserDefinedLogs    map[string][]interface{}
+	UserDefinedMapLogs map[string]map[string]interface{}
+	Ip                 string
 }
 
-func (upl *Uploader) AddCustomLog(App string, Tag string, Content string, Time int64) {
-	upl.CustomLogs = append(upl.CustomLogs, &CustomLog{App, Tag, Content, upl.Ip, Time})
+////////UserDefinedLogs///////////
+
+func (upl *Uploader) AddUserDefinedLog(indexName string, log interface{}) {
+	upl.UserDefinedLogs[indexName] = append(upl.UserDefinedLogs[indexName], log)
 }
 
-func (upl *Uploader) uploadCustomLog() {
-
+func (upl *Uploader) uploadUserDefinedLog(indexName string) {
 	bulkRequest := upl.Client.Bulk()
 
 	for {
 
 		toUploadSize := UPLOAD_DEFAULT_SIZE
-		if toUploadSize > len(upl.CustomLogs) {
-			toUploadSize = len(upl.CustomLogs)
+		if toUploadSize > len(upl.UserDefinedLogs[indexName]) {
+			toUploadSize = len(upl.UserDefinedLogs[indexName])
 		}
 
 		if toUploadSize > 0 {
 			for i := 0; i < toUploadSize; i++ {
-				reqi := elastic.NewBulkIndexRequest().Index("customlog").Doc(upl.CustomLogs[i])
+				reqi := elastic.NewBulkIndexRequest().Index(indexName).Doc(upl.UserDefinedLogs[indexName][i])
 				bulkRequest.Add(reqi)
 			}
 
@@ -86,18 +89,114 @@ func (upl *Uploader) uploadCustomLog() {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
-				upl.CustomLogs = upl.CustomLogs[toUploadSize:]
+				upl.UserDefinedLogs[indexName] = upl.UserDefinedLogs[indexName][toUploadSize:]
 			}
 		}
 
 		//delete some record as too much records
-		if len(upl.CustomLogs) > 100000 {
-			upl.AddGolangPanic("uploader", "CustomLogs length too big > 100000", time.Now().Unix())
-			upl.CustomLogs = upl.CustomLogs[50000:]
+		if len(upl.UserDefinedLogs[indexName]) > 1000000 {
+			upl.AddGolangPanic("uploader", "UserDefinedLogs:"+indexName+": length too big > 1000000", time.Now().Unix())
+			upl.UserDefinedLogs[indexName] = upl.UserDefinedLogs[indexName][900000:]
 		}
 
 		//wait and add
-		if len(upl.CustomLogs) < 10 {
+		if len(upl.UserDefinedLogs[indexName]) < 10 {
+			time.Sleep(300 * time.Second)
+		}
+	}
+
+}
+
+func (upl *Uploader) AddUserDefinedMapLog(indexName string, mapkey string, log interface{}) {
+	if upl.UserDefinedMapLogs[indexName] == nil {
+		upl.UserDefinedMapLogs[indexName] = make(map[string]interface{})
+	}
+
+	upl.UserDefinedMapLogs[indexName][mapkey] = log
+}
+
+func (upl *Uploader) uploadUserDefinedMapLog(indexName string) {
+
+	bulkRequest := upl.Client.Bulk()
+
+	for {
+
+		toUploadSize := 0
+		keysToUpload := []string{}
+
+		for k, v := range upl.UserDefinedMapLogs[indexName] {
+			if toUploadSize >= UPLOAD_DEFAULT_SIZE {
+				break
+			}
+			toUploadSize++
+			keysToUpload = append(keysToUpload, k)
+			reqi := elastic.NewBulkIndexRequest().Index(indexName).Doc(v).Id(k)
+			bulkRequest.Add(reqi)
+		}
+
+		if toUploadSize > 0 {
+			_, err := bulkRequest.Do(context.Background())
+			if err != nil {
+				time.Sleep(120 * time.Second)
+			} else {
+				for i := 0; i < len(keysToUpload); i++ {
+					delete(upl.UserDefinedMapLogs[indexName], keysToUpload[i])
+				}
+			}
+		}
+
+		//give warnings to system
+		if len(upl.UserDefinedMapLogs[indexName]) > 1000000 {
+			upl.AddGolangPanic("uploader", "!!error critical!! UserDefinedMapLogs:"+indexName+": length too big > 1000000", time.Now().Unix())
+		}
+
+		//wait and add
+		if len(upl.UserDefinedMapLogs[indexName]) < 10 {
+			time.Sleep(300 * time.Second)
+		}
+	}
+
+}
+
+//////end of UserDefinedLogs/////////////
+
+func (upl *Uploader) AddTagLog(App string, Tag string, Content string, Time int64) {
+	upl.TagLogs = append(upl.TagLogs, &TagLog{App, Tag, Content, upl.Ip, Time})
+}
+
+func (upl *Uploader) uploadTagLog() {
+
+	bulkRequest := upl.Client.Bulk()
+
+	for {
+
+		toUploadSize := UPLOAD_DEFAULT_SIZE
+		if toUploadSize > len(upl.TagLogs) {
+			toUploadSize = len(upl.TagLogs)
+		}
+
+		if toUploadSize > 0 {
+			for i := 0; i < toUploadSize; i++ {
+				reqi := elastic.NewBulkIndexRequest().Index("taglog").Doc(upl.TagLogs[i])
+				bulkRequest.Add(reqi)
+			}
+
+			_, err := bulkRequest.Do(context.Background())
+			if err != nil {
+				time.Sleep(120 * time.Second)
+			} else {
+				upl.TagLogs = upl.TagLogs[toUploadSize:]
+			}
+		}
+
+		//delete some record as too much records
+		if len(upl.TagLogs) > 1000000 {
+			upl.AddGolangPanic("uploader", "TagLogs length too big > 1000000", time.Now().Unix())
+			upl.TagLogs = upl.TagLogs[900000:]
+		}
+
+		//wait and add
+		if len(upl.TagLogs) < 10 {
 			time.Sleep(300 * time.Second)
 		}
 	}
@@ -105,7 +204,7 @@ func (upl *Uploader) uploadCustomLog() {
 }
 
 func (upl *Uploader) AddSqldbLog(App string, Content string, Time int64) {
-	upl.SqldbLog = append(upl.SqldbLog, &SqldbLog{App, Content, upl.Ip, Time})
+	upl.SqldbLogs = append(upl.SqldbLogs, &SqldbLog{App, Content, upl.Ip, Time})
 }
 
 func (upl *Uploader) uploadSqldbLog() {
@@ -115,13 +214,13 @@ func (upl *Uploader) uploadSqldbLog() {
 	for {
 
 		toUploadSize := UPLOAD_DEFAULT_SIZE
-		if toUploadSize > len(upl.SqldbLog) {
-			toUploadSize = len(upl.SqldbLog)
+		if toUploadSize > len(upl.SqldbLogs) {
+			toUploadSize = len(upl.SqldbLogs)
 		}
 
 		if toUploadSize > 0 {
 			for i := 0; i < toUploadSize; i++ {
-				reqi := elastic.NewBulkIndexRequest().Index("sqldblog").Doc(upl.SqldbLog[i])
+				reqi := elastic.NewBulkIndexRequest().Index("sqldblog").Doc(upl.SqldbLogs[i])
 				bulkRequest.Add(reqi)
 			}
 
@@ -129,18 +228,18 @@ func (upl *Uploader) uploadSqldbLog() {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
-				upl.SqldbLog = upl.SqldbLog[toUploadSize:]
+				upl.SqldbLogs = upl.SqldbLogs[toUploadSize:]
 			}
 		}
 
 		//delete some record as too much records
-		if len(upl.SqldbLog) > 100000 {
-			upl.AddGolangPanic("uploader", "SqldbLog length too big > 100000", time.Now().Unix())
-			upl.SqldbLog = upl.SqldbLog[50000:]
+		if len(upl.SqldbLogs) > 1000000 {
+			upl.AddGolangPanic("uploader", "SqldbLog length too big > 1000000", time.Now().Unix())
+			upl.SqldbLogs = upl.SqldbLogs[900000:]
 		}
 
 		//wait and add
-		if len(upl.SqldbLog) < 10 {
+		if len(upl.SqldbLogs) < 10 {
 			time.Sleep(300 * time.Second)
 		}
 	}
@@ -164,9 +263,12 @@ func (upl *Uploader) uploadGolangPanic() {
 		keysToUpload := []string{}
 
 		for k, v := range upl.GolangPanics {
+			if toUploadSize >= UPLOAD_DEFAULT_SIZE {
+				break
+			}
 			toUploadSize++
 			keysToUpload = append(keysToUpload, k)
-			reqi := elastic.NewBulkIndexRequest().Index("golang_panic").Doc(v)
+			reqi := elastic.NewBulkIndexRequest().Index("golang_panic").Doc(v).Id(k)
 			bulkRequest.Add(reqi)
 		}
 
@@ -182,10 +284,10 @@ func (upl *Uploader) uploadGolangPanic() {
 		}
 
 		//delete some record as too much records
-		if len(upl.GolangPanics) > 100000 {
+		if len(upl.GolangPanics) > 1000000 {
 			//not going to happen actually
 			upl.GolangPanics = make(map[string]*GolangPanic)
-			upl.AddGolangPanic("uploader", "!!error critical!! GolangPanics length too big > 100000", time.Now().Unix())
+			upl.AddGolangPanic("uploader", "!!error critical!! GolangPanics length too big > 1000000", time.Now().Unix())
 		}
 
 		//wait and add
@@ -226,6 +328,10 @@ func (upl *Uploader) uploadJobCurrent() {
 
 }
 
+func (upl *Uploader) GetPublicIP() string {
+	return upl.Ip
+}
+
 func New(endpoint string, username string, password string) (*Uploader, error) {
 
 	client, err := elastic.NewClient(
@@ -240,8 +346,12 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 		return nil, err
 	}
 
-	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, []*CustomLog{}, GetPubIp()}
+	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, []*TagLog{}, make(map[string][]interface{}), make(map[string]map[string]interface{}), GetPubIp()}
 
+	return upl, nil
+}
+
+func (upl *Uploader) Start() {
 	//start the backgroud uploader
 	sr.New_Panic_Redo(func() {
 		upl.uploadSqldbLog()
@@ -256,8 +366,20 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 	}).Start()
 
 	sr.New_Panic_Redo(func() {
-		upl.uploadCustomLog()
+		upl.uploadTagLog()
 	}).Start()
 
-	return upl, nil
+	//start the userdefined
+	for UserMapLogs_indexName, _ := range upl.UserDefinedMapLogs {
+		sr.New_Panic_Redo(func() {
+			upl.uploadUserDefinedMapLog(UserMapLogs_indexName)
+		}).Start()
+	}
+
+	for UserLogs_indexName, _ := range upl.UserDefinedLogs {
+		sr.New_Panic_Redo(func() {
+			upl.uploadUserDefinedLog(UserLogs_indexName)
+		}).Start()
+	}
+
 }
