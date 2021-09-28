@@ -53,14 +53,16 @@ func (r *myRetrier) Retry(ctx context.Context, retry int, req *http.Request, res
 }
 
 type Uploader struct {
-	Client             *elastic.Client
-	CurrentJobs        map[string]*JobCurrent
-	GolangPanics       map[string]*GolangPanic
-	SqldbLogs          []*SqldbLog
-	TagLogs            []*TagLog
-	UserDefinedLogs    map[string][]interface{}
-	UserDefinedMapLogs map[string]map[string]interface{}
-	Ip                 string
+	Client                    *elastic.Client
+	CurrentJobs               map[string]*JobCurrent
+	GolangPanics              map[string]*GolangPanic
+	SqldbLogs                 []*SqldbLog
+	TagLogs                   []*TagLog
+	UserDefinedLogs           map[string][]interface{}
+	UserDefinedLogsStarted    map[string]bool
+	UserDefinedMapLogs        map[string]map[string]interface{}
+	UserDefinedMapLogsStarted map[string]bool
+	Ip                        string
 }
 
 ////////UserDefinedLogs///////////
@@ -346,9 +348,35 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 		return nil, err
 	}
 
-	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, []*TagLog{}, make(map[string][]interface{}), make(map[string]map[string]interface{}), GetPubIp()}
+	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, []*TagLog{},
+		make(map[string][]interface{}), make(map[string]bool), make(map[string]map[string]interface{}), make(map[string]bool), GetPubIp()}
 
 	return upl, nil
+}
+
+func (upl *Uploader) StartUserDefinedLogsUpload() {
+	for {
+
+		for lkindex, _ := range upl.UserDefinedLogs {
+			if !upl.UserDefinedLogsStarted[lkindex] {
+				upl.UserDefinedLogsStarted[lkindex] = true
+				sr.New_Panic_Redo(func() {
+					upl.uploadUserDefinedLog(lkindex)
+				}).Start()
+			}
+		}
+
+		for lmkindex, _ := range upl.UserDefinedMapLogs {
+			if !upl.UserDefinedMapLogsStarted[lmkindex] {
+				upl.UserDefinedMapLogsStarted[lmkindex] = true
+				sr.New_Panic_Redo(func() {
+					upl.uploadUserDefinedMapLog(lmkindex)
+				}).Start()
+			}
+		}
+
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func (upl *Uploader) Start() {
@@ -370,16 +398,6 @@ func (upl *Uploader) Start() {
 	}).Start()
 
 	//start the userdefined
-	for UserMapLogs_indexName, _ := range upl.UserDefinedMapLogs {
-		sr.New_Panic_Redo(func() {
-			upl.uploadUserDefinedMapLog(UserMapLogs_indexName)
-		}).Start()
-	}
-
-	for UserLogs_indexName, _ := range upl.UserDefinedLogs {
-		sr.New_Panic_Redo(func() {
-			upl.uploadUserDefinedLog(UserLogs_indexName)
-		}).Start()
-	}
+	go upl.StartUserDefinedLogsUpload()
 
 }
