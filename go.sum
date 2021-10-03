@@ -6,8 +6,8 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/daqnext/fastjson v1.0.0 h1:uiJsz666J0rf2WTVOkPXUaYqXclSkGNCtcxxn/E/Dqs=
 github.com/daqnext/fastjson v1.0.0/go.mod h1:/l0vJWbS20xVMFJbyMUW6/x5FRpz79gGPm6oolCVFCI=
-github.com/daqnext/go-smart-routine v0.1.1 h1:N+2RBtVKO3FhgNzYsF2cmXIK+H9p11d2fdJd2G+kMVY=
-github.com/daqnext/go-smart-routine v0.1.1/go.mod h1:pSXzjZuiMUh/I7dmQ68qYyZ7tQXyFg2qNOqtHFxX8C0=
+github.com/daqnext/go-smart-routine v0.1.2 h1:VXpbdyHVL9zYjX+qYX7Mbc8KlOmgX0FvkUbkgGbOp8k=
+github.com/daqnext/go-smart-routine v0.1.2/go.mod h1:pSXzjZuiMUh/I7dmQ68qYyZ7tQXyFg2qNOqtHFxX8C0=
 github.com/daqnext/jsonparser v1.1.2 h1:wvFbVlDrc/CHST0pBUkMBi+g/jdHAlDWTGS1OnQOQu8=
 github.com/daqnext/jsonparser v1.1.2/go.mod h1:B0HLHwPJV3n69nZ2Ei8Np/BVHEotzvvEWpCc/FQ7p80=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
