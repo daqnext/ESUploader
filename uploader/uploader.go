@@ -103,7 +103,7 @@ func (upl *Uploader) uploadUserDefinedLog(indexName string) {
 
 		//wait and add
 		if len(upl.UserDefinedLogs[indexName]) < 10 {
-			time.Sleep(300 * time.Second)
+			time.Sleep(120 * time.Second)
 		}
 	}
 
@@ -154,7 +154,7 @@ func (upl *Uploader) uploadUserDefinedMapLog(indexName string) {
 
 		//wait and add
 		if len(upl.UserDefinedMapLogs[indexName]) < 10 {
-			time.Sleep(300 * time.Second)
+			time.Sleep(120 * time.Second)
 		}
 	}
 
@@ -199,7 +199,7 @@ func (upl *Uploader) uploadTagLog() {
 
 		//wait and add
 		if len(upl.TagLogs) < 10 {
-			time.Sleep(300 * time.Second)
+			time.Sleep(120 * time.Second)
 		}
 	}
 
@@ -242,7 +242,7 @@ func (upl *Uploader) uploadSqldbLog() {
 
 		//wait and add
 		if len(upl.SqldbLogs) < 10 {
-			time.Sleep(300 * time.Second)
+			time.Sleep(120 * time.Second)
 		}
 	}
 
@@ -294,7 +294,7 @@ func (upl *Uploader) uploadGolangPanic() {
 
 		//wait and add
 		if len(upl.GolangPanics) < 10 {
-			time.Sleep(300 * time.Second)
+			time.Sleep(120 * time.Second)
 		}
 	}
 
@@ -325,7 +325,7 @@ func (upl *Uploader) uploadJobCurrent() {
 			}
 		}
 		//wait and add
-		time.Sleep(300 * time.Second)
+		time.Sleep(120 * time.Second)
 	}
 
 }
