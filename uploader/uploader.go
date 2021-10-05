@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/daqnext/go-smart-routine/sr"
@@ -54,21 +55,34 @@ func (r *myRetrier) Retry(ctx context.Context, retry int, req *http.Request, res
 
 type Uploader struct {
 	Client                    *elastic.Client
-	CurrentJobs               map[string]*JobCurrent
+	CurrentJobs               sync.Map
 	GolangPanics              map[string]*GolangPanic
+	GolangPanics_lock         sync.Mutex
 	SqldbLogs                 []*SqldbLog
+	SqldbLogs_lock            sync.Mutex
 	TagLogs                   []*TagLog
+	TagLogs_lock              sync.Mutex
 	UserDefinedLogs           map[string][]interface{}
-	UserDefinedLogsStarted    map[string]bool
+	UserDefinedLogs_lock      sync.Mutex
+	UserDefinedLogsStarted    sync.Map
 	UserDefinedMapLogs        map[string]map[string]interface{}
-	UserDefinedMapLogsStarted map[string]bool
+	UserDefinedMapLogs_lock   sync.Mutex
+	UserDefinedMapLogsStarted sync.Map
 	Ip                        string
 }
 
 ////////UserDefinedLogs///////////
 
 func (upl *Uploader) AddUserDefinedLog(indexName string, log interface{}) {
+	upl.UserDefinedLogs_lock.Lock()
+
+	_, ok := upl.UserDefinedLogs[indexName]
+	if !ok {
+		upl.UserDefinedLogs[indexName] = []interface{}{}
+	}
 	upl.UserDefinedLogs[indexName] = append(upl.UserDefinedLogs[indexName], log)
+
+	upl.UserDefinedLogs_lock.Unlock()
 }
 
 func (upl *Uploader) uploadUserDefinedLog(indexName string) {
@@ -91,14 +105,18 @@ func (upl *Uploader) uploadUserDefinedLog(indexName string) {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
+				upl.UserDefinedLogs_lock.Lock()
 				upl.UserDefinedLogs[indexName] = upl.UserDefinedLogs[indexName][toUploadSize:]
+				upl.UserDefinedLogs_lock.Unlock()
 			}
 		}
 
 		//delete some record as too much records
 		if len(upl.UserDefinedLogs[indexName]) > 1000000 {
 			upl.AddGolangPanic("uploader", "UserDefinedLogs:"+indexName+": length too big > 1000000", time.Now().Unix())
+			upl.UserDefinedLogs_lock.Lock()
 			upl.UserDefinedLogs[indexName] = upl.UserDefinedLogs[indexName][900000:]
+			upl.UserDefinedLogs_lock.Unlock()
 		}
 
 		//wait and add
@@ -110,11 +128,17 @@ func (upl *Uploader) uploadUserDefinedLog(indexName string) {
 }
 
 func (upl *Uploader) AddUserDefinedMapLog(indexName string, mapkey string, log interface{}) {
-	if upl.UserDefinedMapLogs[indexName] == nil {
+
+	upl.UserDefinedMapLogs_lock.Lock()
+
+	_, ok := upl.UserDefinedMapLogs[indexName]
+	if !ok {
 		upl.UserDefinedMapLogs[indexName] = make(map[string]interface{})
 	}
 
 	upl.UserDefinedMapLogs[indexName][mapkey] = log
+
+	upl.UserDefinedMapLogs_lock.Unlock()
 }
 
 func (upl *Uploader) uploadUserDefinedMapLog(indexName string) {
@@ -141,9 +165,11 @@ func (upl *Uploader) uploadUserDefinedMapLog(indexName string) {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
+				upl.UserDefinedMapLogs_lock.Lock()
 				for i := 0; i < len(keysToUpload); i++ {
 					delete(upl.UserDefinedMapLogs[indexName], keysToUpload[i])
 				}
+				upl.UserDefinedMapLogs_lock.Unlock()
 			}
 		}
 
@@ -163,7 +189,9 @@ func (upl *Uploader) uploadUserDefinedMapLog(indexName string) {
 //////end of UserDefinedLogs/////////////
 
 func (upl *Uploader) AddTagLog(App string, Tag string, Content string, Time int64) {
+	upl.TagLogs_lock.Lock()
 	upl.TagLogs = append(upl.TagLogs, &TagLog{App, Tag, Content, upl.Ip, Time})
+	upl.TagLogs_lock.Unlock()
 }
 
 func (upl *Uploader) uploadTagLog() {
@@ -187,14 +215,18 @@ func (upl *Uploader) uploadTagLog() {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
+				upl.TagLogs_lock.Lock()
 				upl.TagLogs = upl.TagLogs[toUploadSize:]
+				upl.TagLogs_lock.Unlock()
 			}
 		}
 
 		//delete some record as too much records
 		if len(upl.TagLogs) > 1000000 {
 			upl.AddGolangPanic("uploader", "TagLogs length too big > 1000000", time.Now().Unix())
+			upl.TagLogs_lock.Lock()
 			upl.TagLogs = upl.TagLogs[900000:]
+			upl.TagLogs_lock.Unlock()
 		}
 
 		//wait and add
@@ -206,7 +238,9 @@ func (upl *Uploader) uploadTagLog() {
 }
 
 func (upl *Uploader) AddSqldbLog(App string, Content string, Time int64) {
+	upl.SqldbLogs_lock.Lock()
 	upl.SqldbLogs = append(upl.SqldbLogs, &SqldbLog{App, Content, upl.Ip, Time})
+	upl.SqldbLogs_lock.Unlock()
 }
 
 func (upl *Uploader) uploadSqldbLog() {
@@ -230,14 +264,18 @@ func (upl *Uploader) uploadSqldbLog() {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
+				upl.SqldbLogs_lock.Lock()
 				upl.SqldbLogs = upl.SqldbLogs[toUploadSize:]
+				upl.SqldbLogs_lock.Unlock()
 			}
 		}
 
 		//delete some record as too much records
 		if len(upl.SqldbLogs) > 1000000 {
 			upl.AddGolangPanic("uploader", "SqldbLog length too big > 1000000", time.Now().Unix())
+			upl.SqldbLogs_lock.Lock()
 			upl.SqldbLogs = upl.SqldbLogs[900000:]
+			upl.SqldbLogs_lock.Unlock()
 		}
 
 		//wait and add
@@ -249,10 +287,11 @@ func (upl *Uploader) uploadSqldbLog() {
 }
 
 func (upl *Uploader) AddGolangPanic(App string, Content string, Time int64) {
-
 	data := []byte(App + Content)
 	hashkey := fmt.Sprintf("%x", md5.Sum(data))
+	upl.GolangPanics_lock.Lock()
 	upl.GolangPanics[hashkey] = &GolangPanic{App, Content, upl.Ip, Time}
+	upl.GolangPanics_lock.Unlock()
 }
 
 func (upl *Uploader) uploadGolangPanic() {
@@ -279,16 +318,20 @@ func (upl *Uploader) uploadGolangPanic() {
 			if err != nil {
 				time.Sleep(120 * time.Second)
 			} else {
+				upl.GolangPanics_lock.Lock()
 				for i := 0; i < len(keysToUpload); i++ {
 					delete(upl.GolangPanics, keysToUpload[i])
 				}
+				upl.GolangPanics_lock.Unlock()
 			}
 		}
 
 		//delete some record as too much records
 		if len(upl.GolangPanics) > 1000000 {
 			//not going to happen actually
+			upl.GolangPanics_lock.Lock()
 			upl.GolangPanics = make(map[string]*GolangPanic)
+			upl.GolangPanics_lock.Unlock()
 			upl.AddGolangPanic("uploader", "!!error critical!! GolangPanics length too big > 1000000", time.Now().Unix())
 		}
 
@@ -303,25 +346,28 @@ func (upl *Uploader) uploadGolangPanic() {
 func (upl *Uploader) AddJobCurrent(App string, Name string, Content string, Time int64, Duration int64) {
 	data := []byte(App + Name)
 	hashkey := fmt.Sprintf("%x", md5.Sum(data))
-	upl.CurrentJobs[hashkey] = &JobCurrent{App, Name, Content, upl.Ip, Time, Duration}
+	upl.CurrentJobs.Store(hashkey, &JobCurrent{App, Name, Content, upl.Ip, Time, Duration})
 }
 
 func (upl *Uploader) uploadJobCurrent() {
 
 	bulkRequest := upl.Client.Bulk()
 	for {
-		for _, v := range upl.CurrentJobs {
-			reqi := elastic.NewBulkIndexRequest().Index("jobcurrent").Doc(v).Id(v.App + v.Name)
-			bulkRequest.Add(reqi)
-		}
 
-		if len(upl.CurrentJobs) > 0 {
+		jobsCounter := 0
+		upl.CurrentJobs.Range(func(_, v interface{}) bool {
+			reqi := elastic.NewBulkIndexRequest().Index("jobcurrent").Doc(v).Id(v.(*JobCurrent).App + v.(*JobCurrent).Name)
+			bulkRequest.Add(reqi)
+			jobsCounter++
+			return true
+		})
+
+		if jobsCounter > 0 {
 			_, err := bulkRequest.Do(context.Background())
 			if err != nil {
+				upl.AddGolangPanic("uploader", "uploadJobCurrent:"+err.Error(), time.Now().Unix())
 				time.Sleep(120 * time.Second)
 				continue
-			} else {
-				upl.CurrentJobs = make(map[string]*JobCurrent)
 			}
 		}
 		//wait and add
@@ -348,18 +394,27 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 		return nil, err
 	}
 
-	upl := &Uploader{client, make(map[string]*JobCurrent), make(map[string]*GolangPanic), []*SqldbLog{}, []*TagLog{},
-		make(map[string][]interface{}), make(map[string]bool), make(map[string]map[string]interface{}), make(map[string]bool), GetPubIp()}
+	upl := &Uploader{
+		Client:             client,
+		GolangPanics:       make(map[string]*GolangPanic),
+		SqldbLogs:          []*SqldbLog{},
+		TagLogs:            []*TagLog{},
+		UserDefinedLogs:    make(map[string][]interface{}),
+		UserDefinedMapLogs: make(map[string]map[string]interface{}),
+		Ip:                 GetPubIp(),
+	}
 
+	upl.start()
 	return upl, nil
 }
 
 func (upl *Uploader) StartUserDefinedLogsUpload() {
-	for {
 
+	for {
 		for lkindex, _ := range upl.UserDefinedLogs {
-			if !upl.UserDefinedLogsStarted[lkindex] {
-				upl.UserDefinedLogsStarted[lkindex] = true
+			_, ok := upl.UserDefinedLogsStarted.Load(lkindex)
+			if !ok {
+				upl.UserDefinedLogsStarted.Store(lkindex, true)
 				sr.New_Panic_Redo(func() {
 					upl.uploadUserDefinedLog(lkindex)
 				}).Start()
@@ -367,8 +422,9 @@ func (upl *Uploader) StartUserDefinedLogsUpload() {
 		}
 
 		for lmkindex, _ := range upl.UserDefinedMapLogs {
-			if !upl.UserDefinedMapLogsStarted[lmkindex] {
-				upl.UserDefinedMapLogsStarted[lmkindex] = true
+			_, ok := upl.UserDefinedMapLogsStarted.Load(lmkindex)
+			if !ok {
+				upl.UserDefinedMapLogsStarted.Store(lmkindex, true)
 				sr.New_Panic_Redo(func() {
 					upl.uploadUserDefinedMapLog(lmkindex)
 				}).Start()
@@ -377,9 +433,10 @@ func (upl *Uploader) StartUserDefinedLogsUpload() {
 
 		time.Sleep(5 * time.Second)
 	}
+
 }
 
-func (upl *Uploader) Start() {
+func (upl *Uploader) start() {
 	//start the backgroud uploader
 	sr.New_Panic_Redo(func() {
 		upl.uploadSqldbLog()

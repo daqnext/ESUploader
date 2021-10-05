@@ -20,9 +20,9 @@ type UserDefinedMapLog struct {
 
 func main() {
 
-	endpoint := "xxx"
-	username := "yyy"
-	password := "zzz"
+	endpoint := "https://search-daqnext-ijysrukx2kbm6r73n5awpjjfsy.us-west-1.es.amazonaws.com"
+	username := "daqnext"
+	password := "Daqnext@123456"
 
 	logUploader, err := uploader.New(endpoint, username, password)
 	if err != nil {
@@ -75,8 +75,6 @@ func main() {
 	logUploader.AddUserDefinedMapLog("userdefinedmaplog", mudl1.Field1, &mudl1)
 	logUploader.AddUserDefinedMapLog("userdefinedmaplog", mudl1.Field1, &mudl1) //overwrite
 	logUploader.AddUserDefinedMapLog("userdefinedmaplog", mudl2.Field1, &mudl2) //add
-
-	logUploader.Start()
 
 	time.Sleep(time.Second * 600)
 
