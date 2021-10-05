@@ -135,7 +135,6 @@ func (upl *Uploader) AddUserDefinedMapLog(indexName string, mapkey string, log i
 	if !ok {
 		upl.UserDefinedMapLogs[indexName] = make(map[string]interface{})
 	}
-
 	upl.UserDefinedMapLogs[indexName][mapkey] = log
 
 	upl.UserDefinedMapLogs_lock.Unlock()
@@ -415,8 +414,8 @@ func (upl *Uploader) StartUserDefinedLogsUpload() {
 			_, ok := upl.UserDefinedLogsStarted.Load(lkindex)
 			if !ok {
 				upl.UserDefinedLogsStarted.Store(lkindex, true)
-				sr.New_Panic_Redo(func() {
-					upl.uploadUserDefinedLog(lkindex)
+				sr.New_Panic_RedoWithContext(lkindex, func(indexstr interface{}) {
+					upl.uploadUserDefinedLog(indexstr.(string))
 				}).Start()
 			}
 		}
@@ -425,12 +424,11 @@ func (upl *Uploader) StartUserDefinedLogsUpload() {
 			_, ok := upl.UserDefinedMapLogsStarted.Load(lmkindex)
 			if !ok {
 				upl.UserDefinedMapLogsStarted.Store(lmkindex, true)
-				sr.New_Panic_Redo(func() {
-					upl.uploadUserDefinedMapLog(lmkindex)
+				sr.New_Panic_RedoWithContext(lmkindex, func(indexstr interface{}) {
+					upl.uploadUserDefinedMapLog(indexstr.(string))
 				}).Start()
 			}
 		}
-
 		time.Sleep(5 * time.Second)
 	}
 
