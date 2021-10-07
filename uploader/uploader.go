@@ -178,7 +178,7 @@ func (upl *Uploader) UploadAnyLogs_Sync(indexName string, logs []interface{}) (s
 	for i := 0; i < len(logs); i++ {
 		idstr, iderr := checkStringIdField(logs[i])
 		if iderr != nil {
-			return []string{}, errors.New("no Id field")
+			return []string{}, iderr
 		}
 		reqi := elastic.NewBulkIndexRequest().Index(indexName).Doc(logs[i]).Id(idstr)
 		bulkRequest.Add(reqi)
