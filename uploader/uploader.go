@@ -39,10 +39,9 @@ func (upl *Uploader) GenRandIdStr() string {
 func checkStringIdField(Iface interface{}) (string, error) {
 	ValueIface := reflect.ValueOf(Iface)
 
-	// Check if the passed interface is a pointer
+	// Check if the passed interface is a pointer ,must be a pointer ,otherwise error
 	if ValueIface.Type().Kind() != reflect.Ptr {
-		// Create a new type of Iface's Type, so we have a pointer to work with
-		ValueIface = reflect.New(reflect.TypeOf(Iface))
+		return "", errors.New("checkStringIdField not pointer error")
 	}
 
 	// 'dereference' with Elem() and get the field by name
