@@ -172,6 +172,9 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 }
 
 func (upl *Uploader) UploadAnyLogs_Sync(indexName string, logs []interface{}) (succeededIds []string, idInputError error) {
+	if len(logs) == 0 {
+		return []string{}, nil
+	}
 	bulkRequest := upl.Client.Bulk()
 	for i := 0; i < len(logs); i++ {
 		idstr, iderr := checkStringIdField(logs[i])
