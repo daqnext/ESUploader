@@ -48,7 +48,6 @@ func main() {
 	fmt.Println(errors)
 	fmt.Println(succeededIds)
 
-	return
 
 	///add job current
 	logUploader.AddJobCurrent_Async("TestApp", "job1", "jobcontent1 xxx", time.Now().Unix(), 123)
