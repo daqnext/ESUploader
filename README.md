@@ -11,7 +11,6 @@ go get github.com/daqnext/logservice
 
 
 
-
 package main
 
 import (
@@ -22,7 +21,7 @@ import (
 )
 
 type UserDefinedLog struct {
-	Id     string
+	Id     int
 	Field1 string
 	Field2 int
 	Ip     string
@@ -30,24 +29,25 @@ type UserDefinedLog struct {
 
 func main() {
 
-	endpoint := "xxx"
-	username := "yyy"
-	password := "zzz"
+	endpoint := "xxxx"
+	username := "yyyy"
+	password := "zzzz"
 
 	logUploader, err := uploader.New(endpoint, username, password)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	udl1 := UserDefinedLog{logUploader.GenRandIdStr(), "hello", 1, logUploader.GetPublicIP()}
-	udl2 := UserDefinedLog{logUploader.GenRandIdStr(), "world", 2, logUploader.GetPublicIP()}
-	udl3 := UserDefinedLog{logUploader.GenRandIdStr(), "hello world", 3, logUploader.GetPublicIP()}
+	udl1 := UserDefinedLog{123123, "hello", 1, logUploader.GetPublicIP()}
+	udl2 := UserDefinedLog{451324134, "world", 2, logUploader.GetPublicIP()}
+	udl3 := UserDefinedLog{77777, "hello world", 3, logUploader.GetPublicIP()}
 
 	succeededIds, errors := logUploader.UploadAnyLogs_Sync("userdefinedlog", []interface{}{&udl1, &udl2, &udl3})
 
 	fmt.Println(errors)
 	fmt.Println(succeededIds)
 
+	//return
 
 	///add job current
 	logUploader.AddJobCurrent_Async("TestApp", "job1", "jobcontent1 xxx", time.Now().Unix(), 123)
@@ -81,9 +81,9 @@ func main() {
 
 	//userdefined log
 
-	udl1add := UserDefinedLog{logUploader.GenRandIdStr(), "this is filed1", 2, logUploader.GetPublicIP()}
-	udl2add := UserDefinedLog{logUploader.GenRandIdStr(), "this is filed2", 2, logUploader.GetPublicIP()}
-	udl3add := UserDefinedLog{logUploader.GenRandIdStr(), "this is filed1", 2, logUploader.GetPublicIP()}
+	udl1add := UserDefinedLog{333, "this is filed1", 2, logUploader.GetPublicIP()}
+	udl2add := UserDefinedLog{444, "this is filed2", 2, logUploader.GetPublicIP()}
+	udl3add := UserDefinedLog{555, "this is filed1", 2, logUploader.GetPublicIP()}
 
 	logUploader.AddAnyLog_Async("userdefinedlog", &udl1add) //add
 	logUploader.AddAnyLog_Async("userdefinedlog", &udl2add) //add

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -49,8 +50,19 @@ func checkStringIdField(Iface interface{}) (string, error) {
 	if !Field.IsValid() {
 		return "", errors.New("error:Interface does not have the string Id field")
 	}
-	value := Field.String()
-	trimvalue := strings.TrimSpace(value)
+
+	var str_value string
+	typestr := Field.Type().String()
+	switch {
+	case typestr == "string":
+		str_value = Field.String()
+	case typestr == "int", typestr == "int64", typestr == "int8", typestr == "int16", typestr == "int32":
+		str_value = strconv.FormatInt(Field.Int(), 10)
+	default:
+		return "", errors.New("err:Id type error only support int/int64/int16/int8")
+	}
+
+	trimvalue := strings.TrimSpace(str_value)
 	if trimvalue == "" {
 		return "", errors.New("error:Id string filed is vacant")
 	}
