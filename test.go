@@ -16,9 +16,9 @@ type UserDefinedLog struct {
 
 func main() {
 
-	endpoint := "https://search-daqnext-ijysrukx2kbm6r73n5awpjjfsy.us-west-1.es.amazonaws.com"
-	username := "daqnext"
-	password := "Daqnext@9912468132"
+	endpoint := "xxxx"
+	username := "yyyy"
+	password := "zzzz"
 
 	ESUploader, err := uploader.New(endpoint, username, password)
 	if err != nil {
