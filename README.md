@@ -3,7 +3,7 @@ server side upload logs to remote elastic search server
 
 ## install 
 ```go
-go get github.com/daqnext/logservice
+go get github.com/daqnext/ESUploader
 ```
 
 ## example
@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/daqnext/loguploader/uploader"
+	"github.com/daqnext/ESUploader/uploader"
 )
 
 type UserDefinedLog struct {
@@ -29,9 +29,11 @@ type UserDefinedLog struct {
 
 func main() {
 
-	endpoint := "xxxx"
-	username := "yyyy"
-	password := "zzzz"
+	endpoint := "https://search-daqnext-ijysrukx2kbm6r73n5awpjjfsy.us-west-1.es.amazonaws.com"
+	username := "daqnext"
+	password := "Daqnext@9912468132"
+ 
+
 
 	logUploader, err := uploader.New(endpoint, username, password)
 	if err != nil {

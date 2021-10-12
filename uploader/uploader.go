@@ -16,9 +16,9 @@ import (
 	"github.com/olivere/elastic/v7"
 )
 
-const INDEX_TAGLOG = "taglog"
+const INDEX_TAGLOG = "infolog"
 const INDEX_SQLDBLOG = "sqldblog"
-const INDEX_GOLANG_PANIC = "golang_panic"
+const INDEX_GOLANG_PANIC = "errorlog"
 const INDEX_JOBCURRENT = "jobcurrent"
 const INDEX_UPLOAD_STATICS = "upload_statics"
 
@@ -72,29 +72,32 @@ func checkStringIdField(Iface interface{}) (string, error) {
 //batch upload every 50
 const UPLOAD_DEFAULT_SIZE = 100
 
-type TagLog struct {
-	Id      string
-	App     string
-	Tag     string
-	Content string
-	Ip      string
-	Time    int64
+type InfoLog struct {
+	Id       string
+	App      string
+	Tag      string
+	Content  string
+	Ip       string
+	Instance string
+	Time     int64
 }
 
 type SqldbLog struct {
-	Id      string
-	App     string
-	Content string
-	Ip      string
-	Time    int64
+	Id       string
+	App      string
+	Content  string
+	Ip       string
+	Instance string
+	Time     int64
 }
 
-type GolangPanic struct {
-	Id      string
-	App     string
-	Content string
-	Ip      string
-	Time    int64
+type Errorlog struct {
+	Id       string
+	App      string
+	Content  string
+	Ip       string
+	Instance string
+	Time     int64
 }
 
 type JobCurrent struct {
@@ -103,16 +106,18 @@ type JobCurrent struct {
 	Name     string
 	Content  string
 	Ip       string
+	Instance string
 	Time     int64
 	Duration int64
 }
 
 type UploadStatics struct {
-	Id    string
-	Ip    string
-	Time  int64
-	Index string
-	Count int
+	Id       string
+	Ip       string
+	Time     int64
+	Index    string
+	Count    int
+	Instance string
 }
 
 type Uploader struct {
@@ -121,6 +126,7 @@ type Uploader struct {
 	AnyLogs_lock   sync.Mutex
 	AnyLogsStarted sync.Map
 	Ip             string
+	InstanceIdStr  string
 }
 
 func (upl *Uploader) AddAnyLog_Async(indexName string, log interface{}) error {
@@ -171,7 +177,7 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 
 		//give warnings to system
 		if len(upl.AnyLogs[indexName]) > 1000000 {
-			upl.AddGolangPanic_Async("uploader", "!!error critical!! UserDefinedMapLogs:"+indexName+": length too big > 1000000", time.Now().Unix())
+			upl.AddErrorLog_Async("uploader", "!!error critical!! UserDefinedMapLogs:"+indexName+": length too big > 1000000", "", time.Now().Unix())
 		}
 
 		//wait and add
@@ -204,27 +210,31 @@ func (upl *Uploader) UploadAnyLogs_Sync(indexName string, logs []interface{}) (s
 }
 
 //////end of UserDefinedLogs/////////////
-func (upl *Uploader) AddTagLog_Async(App string, Tag string, Content string, Time int64) {
-	upl.AddAnyLog_Async(INDEX_TAGLOG, &TagLog{upl.GenRandIdStr(), App, Tag, Content, upl.GetPublicIP(), Time})
+func (upl *Uploader) AddInfoLog_Async(Instance string, App string, Tag string, Content string, Time int64) {
+	upl.AddAnyLog_Async(INDEX_TAGLOG, &InfoLog{upl.GenRandIdStr(), App, Tag, Content, upl.GetPublicIP(), Instance, Time})
 }
 
-func (upl *Uploader) AddSqldbLog_Async(App string, Content string, Time int64) {
-	upl.AddAnyLog_Async(INDEX_SQLDBLOG, &SqldbLog{upl.GenRandIdStr(), App, Content, upl.GetPublicIP(), Time})
+func (upl *Uploader) AddSqldbLog_Async(Instance string, App string, Content string, Time int64) {
+	upl.AddAnyLog_Async(INDEX_SQLDBLOG, &SqldbLog{upl.GenRandIdStr(), App, Content, upl.GetPublicIP(), Instance, Time})
 }
 
-func (upl *Uploader) AddGolangPanic_Async(App string, Content string, Time int64) {
+func (upl *Uploader) AddErrorLog_Async(Instance string, App string, Content string, Time int64) {
 	data := []byte(App + Content)
 	hashkey := fmt.Sprintf("%x", md5.Sum(data))
-	upl.AddAnyLog_Async(INDEX_GOLANG_PANIC, &GolangPanic{hashkey, App, Content, upl.GetPublicIP(), Time})
+	upl.AddAnyLog_Async(INDEX_GOLANG_PANIC, &Errorlog{hashkey, App, Content, upl.GetPublicIP(), Instance, Time})
 }
 
-func (upl *Uploader) AddJobCurrent_Async(App string, Name string, Content string, Time int64, Duration int64) {
+func (upl *Uploader) AddJobCurrent_Async(Instance string, App string, Name string, Content string, Time int64, Duration int64) {
 	hashkey := App + ":" + Name + ":" + upl.GetPublicIP()
-	upl.AddAnyLog_Async(INDEX_JOBCURRENT, &JobCurrent{hashkey, App, Name, Content, upl.GetPublicIP(), Time, Duration})
+	upl.AddAnyLog_Async(INDEX_JOBCURRENT, &JobCurrent{hashkey, App, Name, Content, upl.GetPublicIP(), Instance, Time, Duration})
 }
 
 func (upl *Uploader) GetPublicIP() string {
 	return upl.Ip
+}
+
+func (upl *Uploader) GetInstanceId() string {
+	return upl.InstanceIdStr
 }
 
 func New(endpoint string, username string, password string) (*Uploader, error) {
@@ -241,10 +251,18 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 		return nil, err
 	}
 
+	ipstr, errIp := GetPubIp()
+	if errIp != nil {
+		return nil, errIp
+	}
+
+	instanceIdstr := GetInstanceId()
+
 	upl := &Uploader{
-		Client:  client,
-		Ip:      GetPubIp(),
-		AnyLogs: make(map[string]map[string]interface{}),
+		Client:        client,
+		Ip:            ipstr,
+		InstanceIdStr: instanceIdstr,
+		AnyLogs:       make(map[string]map[string]interface{}),
 	}
 
 	upl.start()

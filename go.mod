@@ -1,4 +1,4 @@
-module github.com/daqnext/loguploader
+module github.com/daqnext/ESUploader
 
 go 1.16
 
