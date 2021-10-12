@@ -24,6 +24,10 @@ const INDEX_UPLOAD_STATICS = "upload_statics"
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz"
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 func randStr(n int) string {
 	b := make([]byte, n)
 	for i := range b {
@@ -33,7 +37,9 @@ func randStr(n int) string {
 }
 
 func (upl *Uploader) GenRandIdStr() string {
-	return randStr(42)
+	x := randStr(42)
+	fmt.Println(x)
+	return x
 }
 
 //if Id string field is ok ,return the trimed version of it
@@ -85,6 +91,7 @@ type InfoLog struct {
 type SqldbLog struct {
 	Id       string
 	App      string
+	Tag      string
 	Content  string
 	Ip       string
 	Instance string
@@ -94,6 +101,7 @@ type SqldbLog struct {
 type Errorlog struct {
 	Id       string
 	App      string
+	Tag      string
 	Content  string
 	Ip       string
 	Instance string
@@ -104,6 +112,7 @@ type JobCurrent struct {
 	Id       string
 	App      string
 	Name     string
+	Tag      string
 	Content  string
 	Ip       string
 	Instance string
@@ -114,10 +123,10 @@ type JobCurrent struct {
 type UploadStatics struct {
 	Id       string
 	Ip       string
+	Instance string
 	Time     int64
 	Index    string
 	Count    int
-	Instance string
 }
 
 type Uploader struct {
@@ -177,7 +186,12 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 
 		//give warnings to system
 		if len(upl.AnyLogs[indexName]) > 1000000 {
-			upl.AddErrorLog_Async("uploader", "!!error critical!! UserDefinedMapLogs:"+indexName+": length too big > 1000000", "", time.Now().Unix())
+			upl.AddErrorLog_Async(
+				"",
+				"uploader",
+				"LogOverFlow:"+indexName,
+				"!!error critical!! UserDefinedMapLogs:"+indexName+": length too big > 1000000",
+				time.Now().Unix())
 		}
 
 		//wait and add
@@ -214,19 +228,20 @@ func (upl *Uploader) AddInfoLog_Async(Instance string, App string, Tag string, C
 	upl.AddAnyLog_Async(INDEX_TAGLOG, &InfoLog{upl.GenRandIdStr(), App, Tag, Content, upl.GetPublicIP(), Instance, Time})
 }
 
-func (upl *Uploader) AddSqldbLog_Async(Instance string, App string, Content string, Time int64) {
-	upl.AddAnyLog_Async(INDEX_SQLDBLOG, &SqldbLog{upl.GenRandIdStr(), App, Content, upl.GetPublicIP(), Instance, Time})
+func (upl *Uploader) AddSqldbLog_Async(Instance string, App string, Tag string, Content string, Time int64) {
+	upl.AddAnyLog_Async(INDEX_SQLDBLOG, &SqldbLog{upl.GenRandIdStr(), App, Tag, Content, upl.GetPublicIP(), Instance, Time})
 }
 
-func (upl *Uploader) AddErrorLog_Async(Instance string, App string, Content string, Time int64) {
-	data := []byte(App + Content)
+func (upl *Uploader) AddErrorLog_Async(Instance string, App string, Tag string, Content string, Time int64) {
+	data := []byte(App + Tag + Content)
 	hashkey := fmt.Sprintf("%x", md5.Sum(data))
-	upl.AddAnyLog_Async(INDEX_GOLANG_PANIC, &Errorlog{hashkey, App, Content, upl.GetPublicIP(), Instance, Time})
+	upl.AddAnyLog_Async(INDEX_GOLANG_PANIC, &Errorlog{hashkey, App, Tag, Content, upl.GetPublicIP(), Instance, Time})
 }
 
-func (upl *Uploader) AddJobCurrent_Async(Instance string, App string, Name string, Content string, Time int64, Duration int64) {
-	hashkey := App + ":" + Name + ":" + upl.GetPublicIP()
-	upl.AddAnyLog_Async(INDEX_JOBCURRENT, &JobCurrent{hashkey, App, Name, Content, upl.GetPublicIP(), Instance, Time, Duration})
+func (upl *Uploader) AddJobCurrent_Async(Instance string, App string, Name string, Tag string, Content string, Time int64, Duration int64) {
+	data := []byte(App + ":" + Tag + ":" + Name + ":" + upl.GetPublicIP())
+	hashkey := fmt.Sprintf("%x", md5.Sum(data))
+	upl.AddAnyLog_Async(INDEX_JOBCURRENT, &JobCurrent{hashkey, App, Name, Tag, Content, upl.GetPublicIP(), Instance, Time, Duration})
 }
 
 func (upl *Uploader) GetPublicIP() string {
@@ -292,11 +307,12 @@ func (upl *Uploader) start() {
 		for {
 			for lmkindex, _ := range upl.AnyLogs {
 				upl.AddAnyLog_Async(INDEX_UPLOAD_STATICS, &UploadStatics{
-					Id:    lmkindex + ":" + upl.GetPublicIP(),
-					Ip:    upl.GetPublicIP(),
-					Time:  time.Now().Unix(),
-					Index: lmkindex,
-					Count: len(upl.AnyLogs[lmkindex]),
+					Id:       lmkindex + ":" + upl.GetPublicIP(),
+					Instance: upl.GetInstanceId(),
+					Ip:       upl.GetPublicIP(),
+					Time:     time.Now().Unix(),
+					Index:    lmkindex,
+					Count:    len(upl.AnyLogs[lmkindex]),
 				})
 			}
 			time.Sleep(300 * time.Second)
