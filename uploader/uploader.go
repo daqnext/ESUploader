@@ -38,7 +38,6 @@ func randStr(n int) string {
 
 func (upl *Uploader) GenRandIdStr() string {
 	x := randStr(42)
-	fmt.Println(x)
 	return x
 }
 
