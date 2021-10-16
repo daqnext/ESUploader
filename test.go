@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/daqnext/ESUploader/uploader"
+	localLog "github.com/daqnext/LocalLog/log"
 )
 
 type UserDefinedLog struct {
@@ -16,11 +17,16 @@ type UserDefinedLog struct {
 
 func main() {
 
-	endpoint := "xxxxx"
-	username := "yyyyy"
-	password := "zzzzz"
+	endpoint := "xxxx"
+	username := "yyy"
+	password := "zzzz"
 
-	ESUploader, err := uploader.New(endpoint, username, password)
+	lg, err := localLog.New("logs", 10, 10, 10)
+	if err != nil {
+		panic(err)
+	}
+
+	ESUploader, err := uploader.New(endpoint, username, password, lg)
 	if err != nil {
 		panic(err.Error())
 	}

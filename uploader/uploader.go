@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	localLog "github.com/daqnext/LocalLog/log"
 	"github.com/daqnext/go-smart-routine/sr"
 	"github.com/olivere/elastic/v7"
 )
@@ -135,6 +136,7 @@ type Uploader struct {
 	AnyLogsStarted sync.Map
 	Ip             string
 	InstanceIdStr  string
+	llog           *localLog.LocalLog
 }
 
 func (upl *Uploader) AddAnyLog_Async(indexName string, log interface{}) error {
@@ -251,7 +253,7 @@ func (upl *Uploader) GetInstanceId() string {
 	return upl.InstanceIdStr
 }
 
-func New(endpoint string, username string, password string) (*Uploader, error) {
+func New(endpoint string, username string, password string, llog_ *localLog.LocalLog) (*Uploader, error) {
 
 	client, err := elastic.NewClient(
 		elastic.SetURL(endpoint),
@@ -277,6 +279,7 @@ func New(endpoint string, username string, password string) (*Uploader, error) {
 		Ip:            ipstr,
 		InstanceIdStr: instanceIdstr,
 		AnyLogs:       make(map[string]map[string]interface{}),
+		llog:          llog_,
 	}
 
 	upl.start()
@@ -291,7 +294,7 @@ func (upl *Uploader) startAnyLogsUpload() {
 				upl.AnyLogsStarted.Store(lmkindex, true)
 				sr.New_Panic_RedoWithContext(lmkindex, func(indexstr interface{}) {
 					upl.uploadAnyLog_Async(indexstr.(string))
-				}).Start()
+				}, upl.llog).Start()
 			}
 		}
 		time.Sleep(2 * time.Second)
@@ -316,5 +319,5 @@ func (upl *Uploader) start() {
 			}
 			time.Sleep(300 * time.Second)
 		}
-	}).Start()
+	}, upl.llog).Start()
 }
