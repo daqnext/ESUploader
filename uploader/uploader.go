@@ -143,6 +143,9 @@ func (upl *Uploader) AddAnyLog_Async(indexName string, log interface{}) error {
 
 	idstr, iderr := checkStringIdField(log)
 	if iderr != nil {
+		if upl.llog != nil {
+			upl.llog.Errorln(iderr)
+		}
 		return iderr
 	}
 
@@ -169,14 +172,27 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 			}
 			toUploadSize++
 			reqi := elastic.NewBulkIndexRequest().Index(indexName).Doc(v).Id(k)
+			if upl.llog != nil {
+				upl.llog.Traceln("uploadAnyLog_Async add record ",
+					"indexName:", indexName,
+					" v:", v,
+					" k:", k)
+			}
 			bulkRequest.Add(reqi)
 		}
 
 		if toUploadSize > 0 {
+			if upl.llog != nil {
+				upl.llog.Debugln("uploadAnyLog_Async  toUploadSize :", toUploadSize)
+			}
 			bulkresponse, _ := bulkRequest.Do(context.Background())
 			if len(bulkresponse.Failed()) > 0 {
 				time.Sleep(30 * time.Second)
 			}
+			if upl.llog != nil {
+				upl.llog.Debugln("uploadAnyLog_Async  failed count :", len(bulkresponse.Failed()))
+			}
+
 			successList := bulkresponse.Succeeded()
 			upl.AnyLogs_lock.Lock()
 			for i := 0; i < len(successList); i++ {
@@ -187,6 +203,14 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 
 		//give warnings to system
 		if len(upl.AnyLogs[indexName]) > 1000000 {
+			if upl.llog != nil {
+				upl.llog.Errorln(
+					"uploader",
+					"LogOverFlow:"+indexName,
+					"!!error critical!! UserDefinedMapLogs:"+indexName+": length too big > 1000000",
+					time.Now().Unix(),
+				)
+			}
 			upl.AddErrorLog_Async(
 				"",
 				"uploader",
