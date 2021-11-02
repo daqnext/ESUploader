@@ -196,6 +196,7 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 			successList := bulkresponse.Succeeded()
 			upl.AnyLogs_lock.Lock()
 			for i := 0; i < len(successList); i++ {
+				upl.llog.Debugln("uploadAnyLog_Async delete succeeded record :", successList[i])
 				delete(upl.AnyLogs[indexName], successList[i].Id)
 			}
 			upl.AnyLogs_lock.Unlock()
@@ -220,8 +221,8 @@ func (upl *Uploader) uploadAnyLog_Async(indexName string) {
 		}
 
 		//wait and add
-		if len(upl.AnyLogs[indexName]) < 10 {
-			time.Sleep(120 * time.Second)
+		if len(upl.AnyLogs[indexName]) == 0 {
+			time.Sleep(5 * time.Second)
 		}
 	}
 
